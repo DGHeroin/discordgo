@@ -1681,7 +1681,6 @@ func (s *Session) ChannelInteractionsPrepare(guildId, channelId, appId string, c
         opt(msgData)
     }
     msg.Data = msgData
-    log.Println("===>", msgData)
     return msg
 }
 func (s *Session) ChannelInteractionsCustom(guildId, channelId, appId string, mapData map[string]interface{}) *MessageInteractions {
@@ -1694,12 +1693,12 @@ func (s *Session) ChannelInteractionsCustom(guildId, channelId, appId string, ma
     msg.SessionID = fmt.Sprint(snowflake.New(time.Now()))
 
     msg.Data = mapData
-
     return msg
 }
 func (s *Session) ChannelInteractionsSend(msg *MessageInteractions, options ...RequestOption) error {
     endpoint := EndpointChannelInteractions
     body, _ := json.Marshal(msg)
+    log.Println(endpoint, msg.ToJson(true))
     response, err := s.request("POST", endpoint, "application/json", body, "", 0, options...)
     if err != nil {
         log.Println(err)
@@ -3498,4 +3497,40 @@ func (s *Session) UserApplicationRoleConnectionUpdate(appID string, rconn *Appli
 
     err = unmarshal(body, &st)
     return
+}
+
+type (
+    ChannelApplicationCommandSearchInfo struct {
+        Applications        []Application        `json:"applications,omitempty"`
+        ApplicationCommands []ApplicationCommand `json:"application_commands,omitempty"`
+    }
+)
+
+// ChannelApplicationCommandSearch list channel command
+func (s *Session) ChannelApplicationCommandSearch(channelId string, options ...RequestOption) (applicationCommandInfo *ChannelApplicationCommandSearchInfo, err error) {
+    var result = &ChannelApplicationCommandSearchInfo{}
+    endpoint := EndpointApplicationCommandsSearch(channelId) + fmt.Sprintf(`?type=1&limit=10&command_ids=%v&include_applications=true`, snowflake.New(time.Now()))
+
+    response, err := s.request("GET", endpoint, "application/json", nil, "", 0, options...)
+    if err != nil {
+        return nil, err
+    } else {
+        err = json.Unmarshal(response, result)
+        return result, err
+    }
+}
+
+func (c *ChannelApplicationCommandSearchInfo) GetCommand(name string) *ApplicationCommand {
+    for _, command := range c.ApplicationCommands {
+        if name == command.Name {
+            var cmd = command
+            cmd.Options = []*ApplicationCommandOption{}
+            return &cmd
+        }
+    }
+    return nil
+}
+func (c *ChannelApplicationCommandSearchInfo) String() string {
+    data, _ := json.Marshal(c)
+    return string(data)
 }
