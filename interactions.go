@@ -11,6 +11,7 @@ import (
     "net/http"
     "strconv"
     "time"
+    "github.com/disgoorg/snowflake/v2"
 )
 
 // InteractionDeadline is the time allowed to respond to an interaction.
@@ -55,16 +56,35 @@ func (c *ApplicationCommand) String() string {
     data, _ := json.Marshal(c)
     return string(data)
 }
-func (c *ApplicationCommand) BuildData() map[string]interface{} {
+func (c *ApplicationCommand) BuildData(options ...MessageInteractionsDataOptions) map[string]interface{} {
+    opts := []MessageInteractionsDataOptions{}
+    for _, option := range options {
+        opts = append(opts, option)
+    }
     return H{
         "name":                c.Name,
         "version":             c.Version,
         "id":                  c.ID,
         "type":                c.Type,
-        "options":             []MessageInteractionsDataOptions{},
+        "options":             opts,
         "attachments":         []MessageAttachment{},
         "application_command": c,
     }
+}
+
+func (c *ApplicationCommand) NewInteractions(channelId string, msgType int, options ...MessageInteractionsDataOptions) *MessageInteractions {
+    msg := &MessageInteractions{}
+    msg.Type = msgType
+    msg.GuildID = c.GuildID
+    msg.ChannelID = channelId
+    msg.ApplicationID = c.ApplicationID
+    msg.Nonce = fmt.Sprint(snowflake.New(time.Now()))
+    msg.SessionID = fmt.Sprint(snowflake.New(time.Now()))
+
+    msg.Data = c.BuildData(options...)
+
+    fmt.Println(channelId, "=>", msg.GuildID)
+    return msg
 }
 
 // ApplicationCommandOptionType indicates the type of a slash command's option.

@@ -1667,119 +1667,6 @@ func (s *Session) ChannelMessageSend(channelID string, content string, options .
         Content: content,
     }, options...)
 }
-func (s *Session) ChannelInteractionsPrepare(guildId, channelId, appId string, cmdId, cmdName string, cmdVersion string, cmdType int, opts ...MessageInteractionsDataOption) *MessageInteractions {
-    msg := &MessageInteractions{}
-    msg.Type = 2
-    msg.GuildID = guildId
-    msg.ChannelID = channelId
-    msg.ApplicationID = appId
-    msg.Nonce = fmt.Sprint(snowflake.New(time.Now()))
-    msg.SessionID = fmt.Sprint(snowflake.New(time.Now()))
-    msgData := WithMessageInteractionsData(appId, cmdId, cmdVersion, cmdName, cmdType)
-
-    for _, opt := range opts {
-        opt(msgData)
-    }
-    msg.Data = msgData
-    return msg
-}
-func (s *Session) ChannelInteractionsCustom(guildId, channelId, appId string, mapData map[string]interface{}) *MessageInteractions {
-    msg := &MessageInteractions{}
-    msg.Type = 2
-    msg.GuildID = guildId
-    msg.ChannelID = channelId
-    msg.ApplicationID = appId
-    msg.Nonce = fmt.Sprint(snowflake.New(time.Now()))
-    msg.SessionID = fmt.Sprint(snowflake.New(time.Now()))
-
-    msg.Data = mapData
-    return msg
-}
-func (s *Session) ChannelInteractionsSend(msg *MessageInteractions, options ...RequestOption) error {
-    endpoint := EndpointChannelInteractions
-    body, _ := json.Marshal(msg)
-    log.Println(endpoint, msg.ToJson(true))
-    response, err := s.request("POST", endpoint, "application/json", body, "", 0, options...)
-    if err != nil {
-        log.Println(err)
-        return err
-    } else {
-        log.Println(response)
-    }
-    return nil
-}
-
-// func (s *Session) ChannelInteractions(guildId, channelID string, name string, args []string, options ...RequestOption) {
-//     endpoint := EndpointChannelInteractions
-//     log.Println("命令交互 地址:", endpoint)
-//
-//     var opts = []MessageInteractionsDataOptions{}
-//     var opts2 = []MessageInteractionsOptions{}
-//     for i := 0; i < len(args); i += 2 {
-//         a := args[i]
-//         b := args[i+1]
-//         opts = append(opts, MessageInteractionsDataOptions{
-//             Type:  3,
-//             Name:  a,
-//             Value: b,
-//         })
-//         opts2 = append(opts2, MessageInteractionsOptions{
-//             Type:        3,
-//             Name:        a,
-//             Description: "The prompt to imagine",
-//             Required:    true,
-//         })
-//     }
-//     ApplicationID := "936929561302675456"
-//     VersionID := "1077969938624553050"
-//     VersionID = "987795925764280355"
-//     // 941673664900898876 help
-//     // 972289487818334209 info
-//     // 938956540159881230 imagine
-//     dataID := fmt.Sprint(snowflake.New(time.Now()))
-//     dataID = "941673664900898876"
-//
-//     // nonce := 1085548353170702336 + rand.Intn(999)
-//     nonce := fmt.Sprint(snowflake.New(time.Now()))
-//     msg := &MessageInteractions{
-//         Type:          2,
-//         ApplicationID: ApplicationID,
-//         GuildID:       guildId,
-//         ChannelID:     channelID,
-//         SessionID:     "50fa9cb6abbb4cc777cbd460266d3bed",
-//         Nonce:         nonce,
-//         Data: MessageInteractionsData{
-//             Version:     VersionID,
-//             ID:          dataID,
-//             Name:        name,
-//             Type:        1,
-//             Options:     opts,
-//             Attachments: []*MessageAttachment{},
-//             ApplicationCommand: &MessageInteractionsApplicationCommand{
-//                 ID:                       dataID,
-//                 ApplicationID:            ApplicationID,
-//                 Version:                  VersionID,
-//                 DefaultPermission:        true,
-//                 DefaultMemberPermissions: nil,
-//                 Type:                     1,
-//                 Nsfw:                     false,
-//                 Name:                     name,
-//                 Description:              "Create images with Midjourney",
-//                 DmPermission:             true,
-//                 Options:                  opts2,
-//             },
-//         },
-//     }
-//     body, _ := json.Marshal(msg)
-//     log.Println(string(body))
-//
-//     response, err := s.request("POST", endpoint, "application/json", body, "", 0, options...)
-//     if err != nil {
-//         log.Println(err)
-//     } else {
-//         log.Println(response)
-//     }
-// }
 
 var quoteEscaper = strings.NewReplacer("\\", "\\\\", `"`, "\\\"")
 
@@ -3501,14 +3388,33 @@ func (s *Session) UserApplicationRoleConnectionUpdate(appID string, rconn *Appli
 
 type (
     ChannelApplicationCommandSearchInfo struct {
+        ChannelId           string               `json:"-"`
+        GuildId             string               `json:"-"`
         Applications        []Application        `json:"applications,omitempty"`
         ApplicationCommands []ApplicationCommand `json:"application_commands,omitempty"`
     }
 )
 
+func (s *Session) ChannelInteractionsSend(msg *MessageInteractions, options ...RequestOption) error {
+    endpoint := EndpointChannelInteractions
+    body, _ := json.Marshal(msg)
+    fmt.Println(endpoint, msg.ToJson(true))
+    response, err := s.request("POST", endpoint, "application/json", body, "", 0, options...)
+    if err != nil {
+        fmt.Println(err)
+        return err
+    } else {
+        fmt.Println(response)
+    }
+    return nil
+}
+
 // ChannelApplicationCommandSearch list channel command
-func (s *Session) ChannelApplicationCommandSearch(channelId string, options ...RequestOption) (applicationCommandInfo *ChannelApplicationCommandSearchInfo, err error) {
-    var result = &ChannelApplicationCommandSearchInfo{}
+func (s *Session) ChannelApplicationCommandSearch(channelId, guildId string, options ...RequestOption) (applicationCommandInfo *ChannelApplicationCommandSearchInfo, err error) {
+    var result = &ChannelApplicationCommandSearchInfo{
+        ChannelId: channelId,
+        GuildId:   guildId,
+    }
     endpoint := EndpointApplicationCommandsSearch(channelId) + fmt.Sprintf(`?type=1&limit=10&command_ids=%v&include_applications=true`, snowflake.New(time.Now()))
 
     response, err := s.request("GET", endpoint, "application/json", nil, "", 0, options...)
@@ -3519,13 +3425,29 @@ func (s *Session) ChannelApplicationCommandSearch(channelId string, options ...R
         return result, err
     }
 }
+func (c *ChannelApplicationCommandSearchInfo) GetInteractionsCommandCustom(msgType int, m map[string]interface{}) *MessageInteractions {
+    for _, command := range c.ApplicationCommands { // 第一条命令来构造自定义命令
+        var cmd = command
+        cmd.Options = []*ApplicationCommandOption{}
 
-func (c *ChannelApplicationCommandSearchInfo) GetCommand(name string) *ApplicationCommand {
+        cmd.GuildID = c.GuildId
+        msg := cmd.NewInteractions(c.ChannelId, msgType)
+        msg.Data = m
+        return msg
+
+    }
+    return nil
+}
+func (c *ChannelApplicationCommandSearchInfo) GetInteractionsCommand(name string, msgType int, options ...MessageInteractionsDataOptions) *MessageInteractions {
     for _, command := range c.ApplicationCommands {
         if name == command.Name {
             var cmd = command
             cmd.Options = []*ApplicationCommandOption{}
-            return &cmd
+
+            cmd.GuildID = c.GuildId
+            msg := cmd.NewInteractions(c.ChannelId, msgType)
+            msg.Data = cmd.BuildData(options...)
+            return msg
         }
     }
     return nil
@@ -3533,4 +3455,15 @@ func (c *ChannelApplicationCommandSearchInfo) GetCommand(name string) *Applicati
 func (c *ChannelApplicationCommandSearchInfo) String() string {
     data, _ := json.Marshal(c)
     return string(data)
+}
+func (c *ChannelApplicationCommandSearchInfo) Preview() string {
+    buf := bytes.NewBufferString("")
+    var id2name = map[string]string{}
+    for _, app := range c.Applications {
+        id2name[app.ID] = app.Name
+    }
+    for _, cmd := range c.ApplicationCommands {
+        buf.WriteString(fmt.Sprintf("App:%v Cmd:%v Desc:%v\n", id2name[cmd.ApplicationID], cmd.Name, cmd.Description))
+    }
+    return buf.String()
 }
