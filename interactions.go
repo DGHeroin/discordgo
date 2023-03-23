@@ -83,7 +83,6 @@ func (c *ApplicationCommand) NewInteractions(channelId string, msgType int, opti
 
     msg.Data = c.BuildData(options...)
 
-    fmt.Println(channelId, "=>", msg.GuildID)
     return msg
 }
 
@@ -329,7 +328,9 @@ func (i Interaction) MessageComponentData() (data MessageComponentInteractionDat
 // Make sure to check that the Type of the interaction is InteractionApplicationCommand before calling.
 func (i Interaction) ApplicationCommandData() (data ApplicationCommandInteractionData) {
     if i.Type != InteractionApplicationCommand && i.Type != InteractionApplicationCommandAutocomplete {
-        panic("ApplicationCommandData called on interaction of type " + i.Type.String())
+        // panic("ApplicationCommandData called on interaction of type " + i.Type.String())
+
+        return ApplicationCommandInteractionData{}
     }
     return i.Data.(ApplicationCommandInteractionData)
 }
