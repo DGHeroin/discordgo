@@ -3398,12 +3398,10 @@ type (
 func (s *Session) ChannelInteractionsSend(msg *MessageInteractions, options ...RequestOption) error {
     endpoint := EndpointChannelInteractions
     body, _ := json.Marshal(msg)
-    response, err := s.request("POST", endpoint, "application/json", body, "", 0, options...)
+    _, err := s.request("POST", endpoint, "application/json", body, "", 0, options...)
     if err != nil {
         fmt.Println(err)
         return err
-    } else {
-        fmt.Println(response)
     }
     return nil
 }
